@@ -2,8 +2,11 @@ import axios from 'axios';
 import { Action } from '@graviton/agent-core';
 import { logTransaction } from '../utils/transactionLogger';
 
+import { WalletMetadata } from '../utils/transactionLogger';
+
 export interface CreateWalletParams {
   network: string;
+  metadata?: WalletMetadata;
   credentials: {
     appId: string;
     secret: string;
@@ -25,6 +28,26 @@ export const createWalletAction: Action<CreateWalletParams, CreateWalletResponse
         type: 'string',
         description: 'Blockchain network to create the wallet on',
       },
+      metadata: {
+        type: 'object',
+        properties: {
+          customId: {
+            type: 'string',
+            description: 'Custom identifier for the wallet',
+          },
+          tags: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            description: 'Tags for organizing wallets',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional description of the wallet',
+          },
+        },
+      },
       credentials: {
         type: 'object',
         properties: {
@@ -44,7 +67,7 @@ export const createWalletAction: Action<CreateWalletParams, CreateWalletResponse
   },
 
   async handler(runtime, params) {
-    const { network, credentials } = params;
+    const { network, metadata, credentials } = params;
     const { appId, secret } = credentials;
 
     if (!appId || !secret) {
@@ -54,7 +77,10 @@ export const createWalletAction: Action<CreateWalletParams, CreateWalletResponse
     try {
       const response = await axios.post(
         'https://auth.privy.io/api/v1/server_wallets',
-        { network },
+        { 
+          network,
+          ...(metadata && { metadata }),
+        },
         {
           headers: {
             'Content-Type': 'application/json',
@@ -74,6 +100,7 @@ export const createWalletAction: Action<CreateWalletParams, CreateWalletResponse
         type: 'WALLET_CREATION',
         network: wallet.network,
         address: wallet.address,
+        metadata,
         timestamp: new Date().toISOString(),
       });
 

@@ -1,5 +1,14 @@
 import { Runtime } from '@graviton/agent-core';
 
+export interface WalletMetadata {
+  customId?: string;
+  tags?: string[];
+  description?: string;
+  useThirdPartyGas?: boolean;
+  gasUsed?: string;
+  gasPayedBy?: string;
+}
+
 interface TransactionLog {
   type: 'TRANSACTION' | 'WALLET_CREATION';
   hash?: string;
@@ -8,6 +17,7 @@ interface TransactionLog {
   to?: string;
   value?: string;
   address?: string;
+  metadata?: WalletMetadata;
   timestamp: string;
 }
 
@@ -26,6 +36,7 @@ export async function logTransaction(runtime: Runtime, log: TransactionLog): Pro
       ...(log.from && { from: log.from }),
       ...(log.to && { to: log.to }),
       ...(log.address && { address: log.address }),
+      ...(log.metadata && { metadata: log.metadata }),
     },
   });
 }

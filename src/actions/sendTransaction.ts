@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { Action } from '@graviton/agent-core';
+import axios, { AxiosError } from 'axios';
+import { Action, Runtime } from '@graviton/agent-core';
 import { logTransaction } from '../utils/transactionLogger';
 
 export interface SendTransactionParams {
@@ -8,6 +8,8 @@ export interface SendTransactionParams {
   to: string;
   value: string;
   data?: string;
+  idempotencyKey?: string;
+  useThirdPartyGas?: boolean;
   credentials: {
     appId: string;
     secret: string;
@@ -20,6 +22,8 @@ export interface SendTransactionResponse {
   from: string;
   to: string;
   value: string;
+  gasUsed?: string;
+  gasPayedBy?: string;
 }
 
 export const sendTransactionAction: Action<SendTransactionParams, SendTransactionResponse> = {
@@ -36,6 +40,11 @@ export const sendTransactionAction: Action<SendTransactionParams, SendTransactio
         type: 'string',
         description: 'Blockchain network to send the transaction on',
       },
+      useThirdPartyGas: {
+        type: 'boolean',
+        description: 'Whether to use third-party gas payment for this transaction',
+        default: false,
+      },
       to: {
         type: 'string',
         description: 'Recipient address',
@@ -47,6 +56,10 @@ export const sendTransactionAction: Action<SendTransactionParams, SendTransactio
       data: {
         type: 'string',
         description: 'Optional transaction data',
+      },
+      idempotencyKey: {
+        type: 'string',
+        description: 'Optional unique key to prevent duplicate transactions',
       },
       credentials: {
         type: 'object',
@@ -66,8 +79,8 @@ export const sendTransactionAction: Action<SendTransactionParams, SendTransactio
     required: ['walletAddress', 'network', 'to', 'value', 'credentials'],
   },
 
-  async handler(runtime, params) {
-    const { walletAddress, network, to, value, data, credentials } = params;
+  async handler(runtime: Runtime, params: SendTransactionParams) {
+    const { walletAddress, network, to, value, data, idempotencyKey, useThirdPartyGas, credentials } = params;
     const { appId, secret } = credentials;
 
     if (!appId || !secret) {
@@ -82,6 +95,8 @@ export const sendTransactionAction: Action<SendTransactionParams, SendTransactio
           to,
           value,
           data,
+          idempotencyKey,
+          useThirdPartyGas,
         },
         {
           headers: {
@@ -98,6 +113,8 @@ export const sendTransactionAction: Action<SendTransactionParams, SendTransactio
         from: walletAddress,
         to,
         value,
+        gasUsed: response.data.gasUsed,
+        gasPayedBy: useThirdPartyGas ? 'privy' : walletAddress,
       };
 
       // Log transaction
@@ -109,14 +126,23 @@ export const sendTransactionAction: Action<SendTransactionParams, SendTransactio
         to: transaction.to,
         value: transaction.value,
         timestamp: new Date().toISOString(),
+        metadata: {
+          useThirdPartyGas: useThirdPartyGas || false,
+          gasUsed: response.data.gasUsed,
+          gasPayedBy: useThirdPartyGas ? 'privy' : transaction.from,
+        },
       });
 
       return transaction;
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        throw new Error(`Failed to send transaction: ${error.response?.data?.message || error.message}`);
+        const axiosError = error as AxiosError;
+        throw new Error(`Failed to send transaction: ${axiosError.response?.data?.message || axiosError.message}`);
       }
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('An unknown error occurred');
     }
   },
 };
