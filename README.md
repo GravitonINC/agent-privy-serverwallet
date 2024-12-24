@@ -126,6 +126,16 @@ All transactions are automatically logged to the agent's memory for future refer
 - Status
 - Timestamp
 
+This data is stored in ElizaOS's memory system and can be retrieved using the standard memory API:
+
+```typescript
+// Retrieve transaction history
+const memories = await runtime.memory.search({
+  type: 'transaction',
+  limit: 10
+});
+```
+
 ## Error Handling
 
 The plugin includes comprehensive error handling for:
@@ -149,6 +159,16 @@ pnpm build
 # Test
 pnpm test
 ```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+## Related Projects
+
+- [ai16z/ElizaOS](https://github.com/elizaOS/eliza) - The core ElizaOS framework
+- [Privy Server Wallets](https://docs.privy.io/guide/server-wallets/) - Official Privy documentation
+- [ElizaOS Plugin Examples](https://github.com/elizaOS/eliza/tree/main/packages/_examples/plugin) - Example plugins for ElizaOS
 
 ## License
 
